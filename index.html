@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Список гостей — День рождения</title>
+<style>
+  /* ==========================================================================
+     ДИЗАЙН-ТОКЕНЫ
+     ========================================================================== */
+  :root {
+    --bg: #fbf7f0;
+    --paper: #ffffff;
+    --ink: #2b2724;
+    --muted: #8a8178;
+    --line: #ece5da;
+    --accent: #e0603a;      /* терракота — праздничный акцент */
+    --accent-soft: #fcefe9;
+    --gold: #caa24a;
+
+    --whisky: #b5732b;  --whisky-bg: #f8ecdd;
+    --gin:    #3a8f8f;  --gin-bg:    #e0f1f0;
+    --wine:   #9c3556;  --wine-bg:   #f7e4ea;
+    --beer:   #c99a1e;  --beer-bg:   #faf1d4;
+    --none:   #7d8790;  --none-bg:   #edf0f2;
+
+    --radius: 16px;
+    --shadow: 0 8px 30px rgba(60,45,35,0.08);
+    --shadow-sm: 0 2px 10px rgba(60,45,35,0.06);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: 24px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* ---------- Заголовок ---------- */
+  header.page { text-align: center; margin-bottom: 28px; }
+  header.page .kicker {
+    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin-bottom: 8px;
+  }
+  header.page h1 {
+    font-size: clamp(28px, 6vw, 44px); font-weight: 800; letter-spacing: -.02em;
+  }
+  header.page h1 span { color: var(--accent); }
+
+  /* ---------- Статус синхронизации ---------- */
+  .sync-bar {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    margin: -12px 0 20px;
+  }
+  .sync {
+    font-size: 12.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .sync::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+    display: inline-block;
+  }
+  .sync-idle   { background: #eef0f2; color: #8a9099; }
+  .sync-saving { background: #fff4e0; color: #b5791f; }
+  .sync-ok     { background: #e6f4ea; color: #2e7d46; }
+  .sync-off    { background: #fbe9e4; color: #b23b2e; }
+  .sync-refresh {
+    border: 1px solid var(--line); background: var(--paper); color: var(--muted);
+    font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px;
+    border-radius: 999px; cursor: pointer; box-shadow: var(--shadow-sm); transition: color .12s;
+  }
+  .sync-refresh:hover { color: var(--ink); }
+
+  /* ---------- Табы ---------- */
+  .tabs {
+    display: flex; gap: 6px; margin-bottom: 22px;
+    background: var(--paper); padding: 6px; border-radius: 14px;
+    box-shadow: var(--shadow-sm); border: 1px solid var(--line);
+  }
+  .tab {
+    flex: 1; border: none; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 15px; font-weight: 700; color: var(--muted);
+    padding: 12px 16px; border-radius: 10px; transition: background .15s, color .15s;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .tab-panel.active { animation: none; } }
+
+  /* ---------- Сводка ---------- */
+  .summary {
+    background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px; margin-bottom: 22px;
+  }
+  .summary h2 {
+    font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px; font-weight: 700;
+  }
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;
+  }
+  .stat {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; text-align: center;
+  }
+  .stat .num { font-size: 26px; font-weight: 800; line-height: 1; }
+  .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .stat.hl { background: var(--accent-soft); border-color: #f3d6c9; }
+  .stat.hl .num { color: var(--accent); }
+
+  /* ---------- Расчёт алкоголя ---------- */
+  .booze {
+    margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;
+  }
+  .booze .card {
+    border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line);
+  }
+  .booze .card.w { background: var(--whisky-bg); }
+  .booze .card.g { background: var(--gin-bg); }
+  .booze .card.v { background: var(--wine-bg); }
+  .booze .card .t { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .booze .card .big { font-size: 22px; font-weight: 800; }
+  .booze .card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- Панель действий ---------- */
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .btn {
+    border: none; border-radius: 10px; padding: 11px 18px; font-size: 14px;
+    font-weight: 600; cursor: pointer; font-family: inherit; transition: transform .08s, filter .15s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+
+  /* ---------- Меню «троеточие» ---------- */
+  .menu-wrap { position: relative; display: inline-block; }
+  .btn.kebab {
+    padding: 11px 14px; font-size: 20px; line-height: 1; font-weight: 700; color: var(--muted);
+  }
+  .btn.kebab:hover { color: var(--ink); }
+  .menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 20;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 6px; min-width: 220px;
+  }
+  .menu[hidden] { display: none; }
+  .menu-item {
+    display: block; width: 100%; text-align: left; border: none; background: transparent;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--ink);
+    padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background .12s;
+  }
+  .menu-item:hover { background: var(--bg); }
+  .menu-item.danger { color: #b23b2e; }
+  .menu-item.danger:hover { background: #fbe9e4; }
+
+  .shop-head-right { display: flex; align-items: center; gap: 12px; }
+
+  /* ---------- Таблица ---------- */
+  .table-card {
+    background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; padding: 14px 12px; border-bottom: 2px solid var(--line);
+    white-space: nowrap;
+  }
+  thead th.sortable { cursor: pointer; user-select: none; transition: color .12s; }
+  thead th.sortable:hover { color: var(--ink); }
+  thead th.sortable::after {
+    content: "↕"; font-size: 11px; opacity: .35; margin-left: 5px; display: inline-block;
+  }
+  thead th.sortable.asc::after  { content: "↑"; opacity: 1; color: var(--accent); }
+  thead th.sortable.desc::after { content: "↓"; opacity: 1; color: var(--accent); }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: #faf6f0; }
+  tbody tr.selected { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  tbody tr.absent { opacity: .5; }
+  tbody tr.absent .name-cell input { text-decoration: line-through; }
+  tbody tr.maybe { background: #fffaf0; }
+  tbody tr.maybe.selected { background: var(--accent-soft); }
+
+  .num-cell { color: var(--muted); font-weight: 700; width: 34px; }
+  .num-wrap { display: flex; align-items: center; gap: 6px; }
+  .num-txt { min-width: 16px; }
+  .drag-handle {
+    cursor: grab; color: #c8c0b6; font-size: 15px; line-height: 1; user-select: none;
+    padding: 2px; border-radius: 4px; transition: color .12s;
+  }
+  .drag-handle:hover { color: var(--accent); }
+  .drag-handle:active { cursor: grabbing; }
+  tbody tr.dragging { opacity: .4; }
+  tbody tr.drop-above td { box-shadow: inset 0 3px 0 -1px var(--accent); }
+  tbody tr.drop-below td { box-shadow: inset 0 -3px 0 -1px var(--accent); }
+
+  .moves { display: none; gap: 2px; }
+  .move {
+    border: 1px solid var(--line); background: var(--paper); color: var(--muted);
+    font-family: inherit; font-size: 13px; font-weight: 700; line-height: 1;
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  }
+  .move:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+  .move:disabled { opacity: .3; cursor: default; }
+  .name-wrap { display: flex; align-items: center; gap: 8px; }
+  .going {
+    border: none; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 11px;
+    padding: 5px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+    transition: filter .12s;
+  }
+  .going:hover { filter: brightness(.96); }
+  .going-yes   { background: #e6f4ea; color: #2e7d46; }
+  .going-maybe { background: #fdf1d8; color: #9a7414; }
+  .going-no    { background: #f2eef0; color: #9a6076; }
+
+  .name-cell input {
+    border: none; background: transparent; font: inherit; font-weight: 600; width: 100%;
+    color: var(--ink); padding: 6px 4px; border-radius: 6px;
+  }
+  .name-cell input:focus { background: var(--bg); outline: 2px solid var(--accent); }
+
+  .note-cell input {
+    border: 1px solid transparent; background: var(--bg); font: inherit; font-size: 13px;
+    width: 100%; padding: 7px 9px; border-radius: 8px; color: var(--ink);
+  }
+  .note-cell input:focus { outline: none; border-color: var(--accent); background: #fff; }
+
+  /* Бейджи и переключатели */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px;
+    border-radius: 999px; font-size: 12.5px; font-weight: 700; border: 1px solid transparent;
+  }
+  .badge.adult { background: #eef1f4; color: #55606b; }
+
+  .toggle {
+    border: none; cursor: pointer; padding: 6px 13px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 700; font-family: inherit; transition: filter .12s;
+    white-space: nowrap;
+  }
+  .toggle.yes { background: #e6f4ea; color: #2e7d46; }
+  .toggle.no  { background: #f2eef0; color: #9a6076; }
+  .toggle:hover { filter: brightness(.97); }
+
+  select.drink {
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 30px 6px 12px;
+    font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M1 3l4 4 4-4' stroke='%23888' fill='none' stroke-width='1.5'/></svg>");
+    background-repeat: no-repeat; background-position: right 11px center;
+  }
+  select.drink.whisky { background-color: var(--whisky-bg); color: var(--whisky); }
+  select.drink.gin    { background-color: var(--gin-bg);    color: var(--gin); }
+  select.drink.wine   { background-color: var(--wine-bg);   color: var(--wine); }
+  select.drink.beer   { background-color: var(--beer-bg);   color: var(--beer); }
+  select.drink.none   { background-color: var(--none-bg);   color: var(--none); }
+
+  .del {
+    border: none; background: transparent; cursor: pointer; color: var(--muted);
+    font-size: 18px; line-height: 1; padding: 6px 8px; border-radius: 8px; transition: all .12s;
+  }
+  .del:hover { background: #fbe9e4; color: var(--accent); }
+
+  /* ---------- Закупки ---------- */
+  .shopping {
+    background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px; margin-top: 22px;
+  }
+  .shop-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .shop-head h2 {
+    font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+  .grand { font-size: 15px; color: var(--ink); }
+  .grand b { color: var(--accent); font-size: 20px; font-weight: 800; }
+
+  .shop-block { margin-bottom: 20px; }
+  .cat-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 12px 12px 0 0; border-bottom: none;
+  }
+  .cat-title { font-weight: 700; font-size: 15px; }
+  .cat-sum { font-weight: 800; color: var(--accent); font-size: 15px; }
+
+  .shop-list { border: 1px solid var(--line); border-radius: 0 0 12px 12px; overflow: hidden; }
+  .shop-row {
+    display: grid;
+    grid-template-columns: 1fr 84px 96px 96px 110px 36px;
+    align-items: center; gap: 8px; padding: 8px 14px;
+    border-bottom: 1px solid var(--line); background: var(--paper);
+  }
+  .shop-row:last-child { border-bottom: none; }
+  .shop-row input {
+    border: 1px solid transparent; background: var(--bg); font: inherit; font-size: 14px;
+    padding: 8px 10px; border-radius: 8px; color: var(--ink); width: 100%; min-width: 0;
+  }
+  .shop-row input:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .shop-row input.name { font-weight: 600; }
+  .shop-row input.num { text-align: right; }
+  .shop-row .unit { font-size: 12px; color: var(--muted); text-align: center; }
+  .shop-row .line-total { font-weight: 800; text-align: right; font-size: 14px; }
+  .shop-row .colhdr { font-size: 11px; letter-spacing:.04em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .shop-row.head { background: var(--bg); }
+  .shop-row.head span { padding: 0 4px; }
+
+  .add-row {
+    margin-top: 8px; border: 1px dashed var(--line); background: transparent;
+    color: var(--accent); font-weight: 600; font-family: inherit; font-size: 14px;
+    padding: 9px 14px; border-radius: 10px; cursor: pointer; transition: background .12s;
+  }
+  .add-row:hover { background: var(--accent-soft); }
+
+  /* ---------- Мобильная адаптация ---------- */
+  @media (max-width: 720px) {
+    body { padding: 16px 10px 48px; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tbody tr {
+      background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+      margin-bottom: 12px; padding: 6px 4px; box-shadow: var(--shadow-sm);
+    }
+    tbody tr.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+    tbody td {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--line); padding: 11px 14px;
+    }
+    tbody td:last-child { border-bottom: none; }
+    tbody td::before {
+      content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0;
+    }
+    .num-cell { width: auto; }
+    .drag-handle { display: none; }   /* на тач-экранах drag ненадёжен */
+    .moves { display: flex; }
+    .num-wrap { width: 100%; justify-content: space-between; }
+    .name-cell input, .note-cell input { text-align: right; }
+
+    /* Закупки: карточная раскладка на мобильном */
+    .shop-row {
+      grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 12px 14px;
+    }
+    .shop-row.head { display: none; }
+    .shop-row input.name { grid-column: 1 / -1; }
+    .shop-row .qty::before  { content: "Кол-во"; }
+    .shop-row .unit::before { content: "Ед."; }
+    .shop-row .price::before{ content: "Цена/ед."; }
+    .shop-row .qty::before, .shop-row .unit::before, .shop-row .price::before {
+      display: block; font-size: 10px; text-transform: uppercase; letter-spacing:.04em;
+      color: var(--muted); font-weight: 700; margin-bottom: 3px;
+    }
+    .shop-row .line-total {
+      grid-column: 1 / -1; text-align: left; padding-top: 4px;
+      border-top: 1px dashed var(--line); font-size: 15px;
+    }
+    .shop-row .line-total::before { content: "Сумма: "; color: var(--muted); font-weight: 600; }
+    .shop-row .del { justify-self: end; grid-row: 1; grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="kicker">Праздничный список</div>
+    <h1>Гости на <span>день рождения</span></h1>
+  </header>
+
+  <!-- ===== СТАТУС СИНХРОНИЗАЦИИ ===== -->
+  <div class="sync-bar">
+    <span class="sync sync-idle" id="syncStatus">Подключение…</span>
+    <button class="sync-refresh" id="cloudRefresh" title="Обновить из облака">⟳ Обновить</button>
+  </div>
+
+  <!-- ===== СВОДКА (всегда видна, над табами) ===== -->
+  <section class="summary">
+    <h2>Сводка</h2>
+    <div class="stats" id="stats"></div>
+    <div class="booze" id="booze"></div>
+  </section>
+
+  <!-- ===== ТАБЫ ===== -->
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab-guests" data-tab="guests" role="tab">Гости</button>
+    <button class="tab" id="tab-shop" data-tab="shop" role="tab">Закупки</button>
+  </div>
+
+  <!-- ===== ПАНЕЛЬ: ГОСТИ ===== -->
+  <div class="tab-panel" id="panel-guests" role="tabpanel">
+
+  <!-- ===== ДЕЙСТВИЯ ===== -->
+  <div class="toolbar">
+    <button class="btn primary" id="addBtn">+ Добавить гостя</button>
+    <div class="menu-wrap">
+      <button class="btn ghost kebab" id="guestsMenuBtn" aria-haspopup="true" aria-expanded="false" title="Ещё">⋯</button>
+      <div class="menu" id="guestsMenu" role="menu" hidden>
+        <button class="menu-item danger" id="resetBtn" role="menuitem">Сбросить к исходному списку</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ТАБЛИЦА ===== -->
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="index">№</th>
+          <th class="sortable" data-sort="name">Имя</th>
+          <th class="sortable" data-sort="type">Тип гостя</th>
+          <th class="sortable" data-sort="drinks">Пьёт алкоголь</th>
+          <th class="sortable" data-sort="drink">Что пьёт</th>
+          <th class="sortable" data-sort="note">Примечание</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  </div><!-- /panel-guests -->
+
+  <!-- ===== ПАНЕЛЬ: ЗАКУПКИ ===== -->
+  <div class="tab-panel" id="panel-shop" role="tabpanel">
+
+  <!-- ===== ЗАКУПКИ ===== -->
+  <section class="shopping">
+    <div class="shop-head">
+      <h2>Закупки</h2>
+      <div class="shop-head-right">
+        <div class="grand">Итого: <b id="grandTotal">0 ₽</b></div>
+        <div class="menu-wrap">
+          <button class="btn ghost kebab" id="shopMenuBtn" aria-haspopup="true" aria-expanded="false" title="Ещё">⋯</button>
+          <div class="menu" id="shopMenu" role="menu" hidden>
+            <button class="menu-item danger" id="resetShopBtn" role="menuitem">Сбросить список закупок</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Мясо / шашлык -->
+    <div class="shop-block" data-cat="meat">
+      <div class="cat-head">
+        <span class="cat-title">🍢 Мясо и шашлык</span>
+        <span class="cat-sum" data-sum="meat">0 ₽</span>
+      </div>
+      <div class="shop-list" id="list-meat"></div>
+      <button class="add-row" data-cat="meat">+ Добавить позицию</button>
+    </div>
+
+    <!-- Закуски -->
+    <div class="shop-block" data-cat="snacks">
+      <div class="cat-head">
+        <span class="cat-title">🧀 Закуски</span>
+        <span class="cat-sum" data-sum="snacks">0 ₽</span>
+      </div>
+      <div class="shop-list" id="list-snacks"></div>
+      <button class="add-row" data-cat="snacks">+ Добавить позицию</button>
+    </div>
+
+    <!-- Напитки -->
+    <div class="shop-block" data-cat="drinks">
+      <div class="cat-head">
+        <span class="cat-title">🥤 Напитки и вода</span>
+        <span class="cat-sum" data-sum="drinks">0 ₽</span>
+      </div>
+      <div class="shop-list" id="list-drinks"></div>
+      <button class="add-row" data-cat="drinks">+ Добавить позицию</button>
+    </div>
+  </section>
+
+  </div><!-- /panel-shop -->
+
+</div>
+
+<script>
+/* ============================================================================
+   ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (Supabase)  ←←← НАСТРОЙКИ ПОДКЛЮЧЕНИЯ ЗДЕСЬ
+   ----------------------------------------------------------------------------
+   Данные хранятся в облаке и синхронизируются между всеми устройствами,
+   которые открывают этот файл. Чтобы подключить свою базу — поменяй две
+   строки ниже (URL проекта и публичный ключ).
+
+   Как это работает:
+   - при открытии страница подтягивает данные из облака;
+   - при каждом изменении данные сохраняются в облако (с небольшой задержкой)
+     и одновременно в localStorage как резервная копия;
+   - если облако недоступно — работает офлайн на localStorage, а при
+     восстановлении связи отправляет накопленные изменения.
+   ============================================================================ */
+const CLOUD = {
+  url: "https://emajsszjetcqorgfuqpg.supabase.co",   // Project URL
+  key: "sb_publishable_1JpqMjhwUG2pqqvGxPhU5A_ZdtiXQdd", // Publishable key (публичный, безопасен для браузера)
+  table: "app_state",   // имя таблицы
+  rowId: "main"         // одна строка хранит всё состояние приложения
+};
+const CLOUD_ENABLED = /^https:\/\/.+\.supabase\.co/.test(CLOUD.url) && /^sb_/.test(CLOUD.key);
+
+// Заголовки для запросов к Supabase REST
+function cloudHeaders() {
+  return {
+    "apikey": CLOUD.key,
+    "Authorization": "Bearer " + CLOUD.key,
+    "Content-Type": "application/json"
+  };
+}
+
+// Индикатор состояния синхронизации (создаётся при загрузке)
+let syncEl = null;
+function setSync(state, text) {
+  if (!syncEl) return;
+  syncEl.className = "sync sync-" + state;
+  syncEl.textContent = text;
+}
+
+// Прочитать состояние из облака. Возвращает {guests, shopping} | null
+async function cloudLoad() {
+  if (!CLOUD_ENABLED) return null;
+  try {
+    const r = await fetch(
+      `${CLOUD.url}/rest/v1/${CLOUD.table}?id=eq.${CLOUD.rowId}&select=data`,
+      { headers: cloudHeaders() }
+    );
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const rows = await r.json();
+    if (Array.isArray(rows) && rows.length && rows[0].data) return rows[0].data;
+    return null; // строки ещё нет — не ошибка
+  } catch (e) {
+    console.warn("Не удалось загрузить из облака:", e.message);
+    return null;
+  }
+}
+
+// Записать состояние в облако (upsert одной строки).
+let cloudTimer = null;
+let cloudPending = false;
+function cloudSave() {
+  if (!CLOUD_ENABLED) return;
+  cloudPending = true;
+  setSync("saving", "Сохраняю…");
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(pushToCloud, 800); // дебаунс: не чаще раза в 0.8с
+}
+
+async function pushToCloud() {
+  if (!CLOUD_ENABLED || !cloudPending) return;
+  cloudPending = false;
+  const payload = [{
+    id: CLOUD.rowId,
+    data: { guests, shopping },
+    updated_at: new Date().toISOString()
+  }];
+  try {
+    const r = await fetch(
+      `${CLOUD.url}/rest/v1/${CLOUD.table}?on_conflict=id`,
+      {
+        method: "POST",
+        headers: { ...cloudHeaders(), "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify(payload)
+      }
+    );
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    setSync("ok", "Сохранено в облаке");
+  } catch (e) {
+    console.warn("Не удалось сохранить в облако:", e.message);
+    setSync("off", "Офлайн — сохранено локально");
+    cloudPending = true; // попробуем снова при следующем изменении
+  }
+}
+
+/* ============================================================================
+   НАСТРОЙКИ РАСЧЁТА АЛКОГОЛЯ  ←←← МЕНЯЙ НОРМЫ ЗДЕСЬ
+   ----------------------------------------------------------------------------
+   Все значения в литрах.
+   ============================================================================ */
+const CONFIG = {
+  perPerson: {
+    whisky: 0.25,   // виски: литров на человека
+    gin:    0.25,   // джин:  литров на человека
+    wine:   0.375,  // вино:  0.75 л на 2 человека = 0.375 л на человека
+    beer:   0.5     // пиво:  литров на человека (при желании измени)
+  },
+  // Индивидуальные нормы для конкретных людей (по имени).
+  // Например, «Мама» пьёт немного виски — 0.1 л вместо 0.25.
+  overrides: {
+    "Мама": { whisky: 0.1 }
+  },
+  bottle: {
+    whisky: 0.7,    // объём бутылки виски, л
+    gin:    0.7,    // объём бутылки джина, л
+    wine:   0.75,   // объём бутылки вина, л
+    beer:   0.5     // объём бутылки/банки пива, л
+  }
+};
+/* ==========================================================================*/
+
+const DRINKS = {
+  whisky: "Виски",
+  gin:    "Джин",
+  wine:   "Вино",
+  beer:   "Пиво",
+  none:   "Без алкоголя"
+};
+
+const DEFAULT_GUESTS = [
+  { name:"Алексей",         type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Ира",             type:"adult", drinks:true,  drink:"gin",    note:"" },
+  { name:"Мама",            type:"adult", drinks:true,  drink:"whisky", note:"немного виски" },
+  { name:"Андрей Кузькин",  type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Аня Кузькина",    type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Андрей Смолич",   type:"adult", drinks:false, drink:"none",   note:"" },
+  { name:"Мира Смолич",     type:"adult", drinks:false, drink:"none",   note:"" },
+  { name:"Санёк",           type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Костян",          type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Саня Рыбник",     type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Даша Рыбник",     type:"adult", drinks:false, drink:"none",   note:"" },
+  { name:"Саня Иванченко",  type:"adult", drinks:false, drink:"none",   note:"" },
+  { name:"Серёга Дудка",    type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Оля Дудка",       type:"adult", drinks:true,  drink:"gin",    note:"" },
+  { name:"Наташа",          type:"adult", drinks:true,  drink:"gin",    note:"" },
+  { name:"Жора",            type:"adult", drinks:true,  drink:"whisky", note:"" },
+  { name:"Вова Каспер",     type:"adult", drinks:false, drink:"none",   note:"" },
+  { name:"Валя",            type:"adult", drinks:true,  drink:"wine",   note:"" }
+];
+
+const STORAGE_KEY = "bday-guests-v1";
+
+/* ---------- Состояние ---------- */
+let _nextId = 1;
+function assignIds(list) {
+  list.forEach(g => {
+    if (g.id == null) g.id = _nextId++; else _nextId = Math.max(_nextId, g.id + 1);
+    if (!g.going) g.going = "yes";   // статус присутствия: yes | maybe | no (по умолчанию — придёт)
+  });
+  return list;
+}
+
+let guests = load();
+let selectedId = null;              // выделенный гость (по стабильному id)
+let sortKey = null;                 // по какому столбцу сортируем
+let sortDir = 1;                    // 1 = по возрастанию, -1 = по убыванию
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return assignIds(JSON.parse(raw));
+  } catch(e) {}
+  return assignIds(structuredClone(DEFAULT_GUESTS));
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(guests)); } catch(e) {}
+  cloudSave();
+}
+
+/* ---------- Отрисовка таблицы ---------- */
+const tbody = document.getElementById("tbody");
+
+/* ---------- Перестановка гостей (drag & drop + кнопки ↑/↓) ---------- */
+let dragId = null;
+
+// Ручной порядок виден только без сортировки по столбцу.
+// Поэтому при перестановке сбрасываем сортировку в режим «свой порядок».
+function ensureManualOrder() {
+  if (sortKey && sortKey !== "index") { sortKey = null; sortDir = 1; }
+}
+
+// Сдвинуть гостя на одну позицию (dir = -1 вверх, +1 вниз)
+// Работает по видимому порядку: если была сортировка по столбцу, сначала
+// фиксируем текущий видимый порядок как свой, затем двигаем.
+function moveGuest(id, dir) {
+  if (sortKey && sortKey !== "index") {
+    guests = sortedGuests();   // зафиксировать то, что на экране
+    ensureManualOrder();
+  }
+  const i = guests.findIndex(g => g.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= guests.length) return;
+  [guests[i], guests[j]] = [guests[j], guests[i]];
+  selectedId = id;
+  save(); render();
+}
+
+// Перенести гостя dragId к цели targetId (below = вставить после цели)
+function dropGuest(dragIdVal, targetId, below) {
+  if (sortKey && sortKey !== "index") {
+    guests = sortedGuests();
+    ensureManualOrder();
+  }
+  const from = guests.findIndex(g => g.id === dragIdVal);
+  if (from < 0) return;
+  const [moved] = guests.splice(from, 1);
+  const to = guests.findIndex(g => g.id === targetId);
+  if (to < 0) { guests.splice(from, 0, moved); return; }
+  guests.splice(below ? to + 1 : to, 0, moved);
+  selectedId = dragIdVal;
+  save(); render();
+}
+
+function sortedGuests() {
+  // Возвращает копию массива в порядке отображения (не меняет исходный порядок).
+  const arr = guests.slice();
+  if (!sortKey || sortKey === "index") return arr;
+  const drinkOrder = { whisky:0, gin:1, wine:2, beer:3, none:4 };
+  arr.sort((a, b) => {
+    let va, vb;
+    switch (sortKey) {
+      case "name": va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
+      case "type": va = a.type; vb = b.type; break;
+      case "drinks": va = a.drinks ? 1 : 0; vb = b.drinks ? 1 : 0; break;
+      case "drink": va = drinkOrder[a.drink] ?? 9; vb = drinkOrder[b.drink] ?? 9; break;
+      case "note": va = a.note.toLowerCase(); vb = b.note.toLowerCase(); break;
+      default: return 0;
+    }
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return  1 * sortDir;
+    return 0;
+  });
+  return arr;
+}
+
+function render() {
+  tbody.innerHTML = "";
+  const view = sortedGuests();
+  view.forEach((g, i) => {
+    const tr = document.createElement("tr");
+    if (g.id === selectedId) tr.classList.add("selected");
+    if (g.going === "no") tr.classList.add("absent");
+    if (g.going === "maybe") tr.classList.add("maybe");
+
+    // клик по строке — выделение (кроме кликов по интерактивным элементам)
+    tr.addEventListener("click", (e) => {
+      if (e.target.closest("input,select,button")) return;
+      selectedId = (selectedId === g.id) ? null : g.id;
+      render();
+    });
+
+    // № + ручка перетаскивания и кнопки ↑/↓
+    const tdNum = cell("№", "num-cell");
+    const numWrap = document.createElement("div");
+    numWrap.className = "num-wrap";
+
+    const handle = document.createElement("span");
+    handle.className = "drag-handle";
+    handle.textContent = "⠿";
+    handle.title = "Перетащить, чтобы поменять порядок";
+    handle.draggable = true;
+
+    const numTxt = document.createElement("span");
+    numTxt.className = "num-txt";
+    numTxt.textContent = i + 1;
+
+    // кнопки для телефона (drag на тач-экранах ненадёжен)
+    const moves = document.createElement("span");
+    moves.className = "moves";
+    const up = document.createElement("button");
+    up.className = "move"; up.textContent = "↑"; up.title = "Выше";
+    up.disabled = i === 0;
+    up.addEventListener("click", () => moveGuest(g.id, -1));
+    const down = document.createElement("button");
+    down.className = "move"; down.textContent = "↓"; down.title = "Ниже";
+    down.disabled = i === view.length - 1;
+    down.addEventListener("click", () => moveGuest(g.id, +1));
+    moves.append(up, down);
+
+    numWrap.append(handle, numTxt, moves);
+    tdNum.appendChild(numWrap);
+    tr.appendChild(tdNum);
+
+    // ---- Drag & drop ----
+    handle.addEventListener("dragstart", (e) => {
+      dragId = g.id;
+      tr.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", String(g.id)); } catch(err) {}
+    });
+    handle.addEventListener("dragend", () => {
+      dragId = null;
+      tbody.querySelectorAll("tr").forEach(r => r.classList.remove("dragging", "drop-above", "drop-below"));
+    });
+    tr.addEventListener("dragover", (e) => {
+      if (dragId == null || dragId === g.id) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = tr.getBoundingClientRect();
+      const below = (e.clientY - rect.top) > rect.height / 2;
+      tr.classList.toggle("drop-below", below);
+      tr.classList.toggle("drop-above", !below);
+    });
+    tr.addEventListener("dragleave", () => tr.classList.remove("drop-above", "drop-below"));
+    tr.addEventListener("drop", (e) => {
+      e.preventDefault();
+      tr.classList.remove("drop-above", "drop-below");
+      if (dragId == null || dragId === g.id) return;
+      const rect = tr.getBoundingClientRect();
+      const below = (e.clientY - rect.top) > rect.height / 2;
+      dropGuest(dragId, g.id, below);
+    });
+
+    // Имя + статус присутствия
+    const tdName = cell("Имя", "name-cell");
+    const nameWrap = document.createElement("div");
+    nameWrap.className = "name-wrap";
+
+    // переключатель Придёт / Под вопросом / Не придёт (клик циклом)
+    const GOING = ["yes", "maybe", "no"];
+    const GOING_LABEL = { yes: "✓ Придёт", maybe: "? Под вопросом", no: "✕ Не придёт" };
+    const going = document.createElement("button");
+    going.className = "going going-" + g.going;
+    going.textContent = GOING_LABEL[g.going];
+    going.title = "Статус присутствия — нажмите, чтобы изменить";
+    going.addEventListener("click", () => {
+      const next = GOING[(GOING.indexOf(g.going) + 1) % GOING.length];
+      g.going = next; save(); render();
+    });
+
+    const nameInput = document.createElement("input");
+    nameInput.value = g.name;
+    nameInput.addEventListener("input", () => { g.name = nameInput.value; save(); updateSummary(); });
+
+    nameWrap.appendChild(going);
+    nameWrap.appendChild(nameInput);
+    tdName.appendChild(nameWrap);
+    tr.appendChild(tdName);
+
+    // Тип гостя
+    const tdType = cell("Тип гостя");
+    tdType.innerHTML = `<span class="badge adult">Взрослый</span>`;
+    tr.appendChild(tdType);
+
+    // Пьёт алкоголь (переключатель)
+    const tdDrinks = cell("Пьёт алкоголь");
+    const toggle = document.createElement("button");
+    toggle.className = "toggle " + (g.drinks ? "yes" : "no");
+    toggle.textContent = g.drinks ? "Пьёт" : "Не пьёт";
+    toggle.addEventListener("click", () => {
+      g.drinks = !g.drinks;
+      if (!g.drinks) g.drink = "none";
+      else if (g.drink === "none") g.drink = "whisky";
+      save(); render();
+    });
+    tdDrinks.appendChild(toggle);
+    tr.appendChild(tdDrinks);
+
+    // Что пьёт (селект)
+    const tdDrink = cell("Что пьёт");
+    const sel = document.createElement("select");
+    sel.className = "drink " + g.drink;
+    Object.entries(DRINKS).forEach(([val, label]) => {
+      const opt = document.createElement("option");
+      opt.value = val; opt.textContent = label;
+      if (val === g.drink) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", () => {
+      g.drink = sel.value;
+      g.drinks = sel.value !== "none";
+      save(); render();
+    });
+    tdDrink.appendChild(sel);
+    tr.appendChild(tdDrink);
+
+    // Примечание
+    const tdNote = cell("Примечание", "note-cell");
+    const noteInput = document.createElement("input");
+    noteInput.value = g.note; noteInput.placeholder = "—";
+    noteInput.addEventListener("input", () => { g.note = noteInput.value; save(); });
+    tdNote.appendChild(noteInput);
+    tr.appendChild(tdNote);
+
+    // Удалить
+    const tdDel = cell("");
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "✕"; del.title = "Удалить гостя";
+    del.addEventListener("click", () => {
+      const idx = guests.indexOf(g);
+      if (idx > -1) guests.splice(idx, 1);
+      if (selectedId === g.id) selectedId = null;
+      save(); render();
+    });
+    tdDel.appendChild(del);
+    tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  });
+  updateSortIndicators();
+  updateSummary();
+}
+
+/* ---------- Сортировка по клику на заголовок ---------- */
+function updateSortIndicators() {
+  document.querySelectorAll("thead th.sortable").forEach(th => {
+    th.classList.remove("asc", "desc");
+    if (th.dataset.sort === sortKey) th.classList.add(sortDir === 1 ? "asc" : "desc");
+  });
+}
+
+document.querySelectorAll("thead th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortDir *= -1;        // повторный клик — меняем направление
+    else { sortKey = key; sortDir = 1; }
+    render();
+  });
+});
+
+function cell(label, cls) {
+  const td = document.createElement("td");
+  if (cls) td.className = cls;
+  if (label) td.setAttribute("data-label", label);
+  return td;
+}
+
+/* ---------- Сводка и расчёт ---------- */
+function updateSummary() {
+  // В сводку и расчёт алкоголя попадают ТОЛЬКО те, кто точно придёт (going === "yes").
+  const coming = guests.filter(g => g.going === "yes");
+  const maybe  = guests.filter(g => g.going === "maybe").length;
+  const notComing = guests.filter(g => g.going === "no").length;
+
+  const total = guests.length;
+  const comingCount = coming.length;
+  const drinking = coming.filter(g => g.drinks).length;
+  const notDrinking = comingCount - drinking;
+  const whiskyPeople = coming.filter(g => g.drink === "whisky").length;
+  const ginPeople = coming.filter(g => g.drink === "gin").length;
+  const winePeople = coming.filter(g => g.drink === "wine").length;
+
+  document.getElementById("stats").innerHTML = `
+    ${statCard(comingCount, "Точно придут", true)}
+    ${statCard(maybe, "Под вопросом")}
+    ${statCard(notComing, "Не придут")}
+    ${statCard(total, "Всего в списке")}
+    ${statCard(drinking, "Пьют алкоголь")}
+    ${statCard(notDrinking, "Не пьют")}
+    ${statCard(whiskyPeople, "Пьют виски")}
+    ${statCard(ginPeople, "Пьют джин")}
+    ${statCard(winePeople, "Пьют вино")}
+  `;
+
+  // Расчёт литров — только по подтверждённым гостям, с учётом индивидуальных норм
+  const litres = { whisky: 0, gin: 0, wine: 0 };
+  coming.forEach(g => {
+    if (!g.drinks) return;
+    const d = g.drink;
+    if (!(d in litres)) return;
+    const ovr = CONFIG.overrides[g.name];
+    const perPerson = (ovr && ovr[d] != null) ? ovr[d] : CONFIG.perPerson[d];
+    litres[d] += perPerson;
+  });
+
+  document.getElementById("booze").innerHTML = `
+    ${boozeCard("w", "🥃 Виски", litres.whisky, CONFIG.bottle.whisky)}
+    ${boozeCard("g", "🍸 Джин", litres.gin, CONFIG.bottle.gin)}
+    ${boozeCard("v", "🍷 Вино", litres.wine, CONFIG.bottle.wine)}
+  `;
+}
+
+function statCard(num, lbl, hl) {
+  return `<div class="stat ${hl?'hl':''}"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
+}
+
+function boozeCard(cls, title, litres, bottleSize) {
+  const bottles = Math.ceil(litres / bottleSize) || 0;
+  return `<div class="card ${cls}">
+    <div class="t">${title}</div>
+    <div class="big">${bottles} бут.</div>
+    <div class="sub">≈ ${litres.toFixed(2)} л · бутылка ${bottleSize} л</div>
+  </div>`;
+}
+
+/* ---------- Действия ---------- */
+document.getElementById("addBtn").addEventListener("click", () => {
+  const g = { id: _nextId++, name:"Новый гость", type:"adult", drinks:true, drink:"whisky", note:"", going:"yes" };
+  guests.push(g);
+  selectedId = g.id;
+  save(); render();
+  // фокус на строке нового гостя (учитывая текущую сортировку)
+  const view = sortedGuests();
+  const pos = view.findIndex(x => x.id === g.id);
+  const inputs = tbody.querySelectorAll(".name-cell input");
+  if (pos > -1 && inputs[pos]) { inputs[pos].focus(); inputs[pos].select(); }
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (confirm("Вернуть исходный список гостей? Все изменения будут потеряны.")) {
+    _nextId = 1;
+    guests = assignIds(structuredClone(DEFAULT_GUESTS));
+    selectedId = null;
+    sortKey = null; sortDir = 1;
+    save(); render();
+  }
+});
+
+render();
+
+/* ============================================================================
+   ЗАКУПКИ
+   ----------------------------------------------------------------------------
+   Каждая позиция: { name, qty, unit, price }
+   line-total = qty * price.  «Итого» суммирует все категории.
+   ============================================================================ */
+
+/* ←←← НОРМЫ ЗАКУПОК: правь стартовые позиции и цены здесь.
+   Цены в рублях; для мяса единица «кг», для штучного — «шт»,
+   для напитков — «л» или «шт». Средняя цена свиного шашлыка — 600 ₽/кг. */
+const DEFAULT_SHOPPING = {
+  meat: [
+    { name: "Свиной шашлык", qty: 6, unit: "кг", price: 600 },
+    { name: "Куриный шашлык", qty: 3, unit: "кг", price: 400 }
+  ],
+  snacks: [
+    { name: "Колбасы (нарезка)", qty: 2,  unit: "кг", price: 700 },
+    { name: "Сыры (нарезка)",    qty: 1.5,unit: "кг", price: 900 },
+    { name: "Оливки",            qty: 3,  unit: "банка", price: 250 },
+    { name: "Лаваш",             qty: 5,  unit: "шт", price: 60 },
+    { name: "Овощи (помидоры, огурцы, зелень)", qty: 3, unit: "кг", price: 200 },
+    { name: "Соусы / кетчуп",    qty: 3,  unit: "шт", price: 150 }
+  ],
+  drinks: [
+    { name: "Вода негазированная", qty: 12, unit: "л", price: 40 },
+    { name: "Вода газированная",   qty: 6,  unit: "л", price: 45 },
+    { name: "Соки",                qty: 6,  unit: "л", price: 120 },
+    { name: "Кола / лимонад",      qty: 6,  unit: "л", price: 90 }
+  ]
+};
+
+const SHOP_KEY = "bday-shopping-v1";
+const CATS = ["meat", "snacks", "drinks"];
+
+let shopping = loadShopping();
+
+function loadShopping() {
+  try {
+    const raw = localStorage.getItem(SHOP_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      CATS.forEach(c => { if (!Array.isArray(p[c])) p[c] = []; });
+      return p;
+    }
+  } catch(e) {}
+  return structuredClone(DEFAULT_SHOPPING);
+}
+function saveShopping() {
+  try { localStorage.setItem(SHOP_KEY, JSON.stringify(shopping)); } catch(e) {}
+  cloudSave();
+}
+
+function fmt(n) {
+  return Math.round(n).toLocaleString("ru-RU") + " ₽";
+}
+
+function renderShopping() {
+  let grand = 0;
+  CATS.forEach(cat => {
+    const list = document.getElementById("list-" + cat);
+    list.innerHTML = "";
+
+    // заголовок колонок
+    const head = document.createElement("div");
+    head.className = "shop-row head";
+    head.innerHTML = `
+      <span class="colhdr">Наименование</span>
+      <span class="colhdr" style="text-align:right;">Кол-во</span>
+      <span class="colhdr" style="text-align:center;">Ед.</span>
+      <span class="colhdr" style="text-align:right;">Цена/ед.</span>
+      <span class="colhdr" style="text-align:right;">Сумма</span>
+      <span></span>`;
+    list.appendChild(head);
+
+    let catSum = 0;
+    shopping[cat].forEach((item, i) => {
+      const total = (Number(item.qty) || 0) * (Number(item.price) || 0);
+      catSum += total;
+
+      const row = document.createElement("div");
+      row.className = "shop-row";
+
+      const name = document.createElement("input");
+      name.className = "name"; name.value = item.name; name.placeholder = "Наименование";
+      name.addEventListener("input", () => { item.name = name.value; saveShopping(); });
+
+      const qty = document.createElement("input");
+      qty.className = "num qty"; qty.type = "number"; qty.min = "0"; qty.step = "0.5";
+      qty.value = item.qty;
+      qty.addEventListener("input", () => { item.qty = qty.value; saveShopping(); renderShopping(); });
+
+      const unit = document.createElement("input");
+      unit.className = "unit"; unit.value = item.unit; unit.placeholder = "ед.";
+      unit.style.textAlign = "center"; unit.style.fontSize = "13px";
+      unit.addEventListener("input", () => { item.unit = unit.value; saveShopping(); });
+
+      const price = document.createElement("input");
+      price.className = "num price"; price.type = "number"; price.min = "0"; price.step = "10";
+      price.value = item.price;
+      price.addEventListener("input", () => { item.price = price.value; saveShopping(); renderShopping(); });
+
+      const lineTotal = document.createElement("div");
+      lineTotal.className = "line-total"; lineTotal.textContent = fmt(total);
+
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "✕"; del.title = "Удалить позицию";
+      del.addEventListener("click", () => {
+        shopping[cat].splice(i, 1); saveShopping(); renderShopping();
+      });
+
+      row.append(name, qty, unit, price, lineTotal, del);
+      list.appendChild(row);
+    });
+
+    document.querySelector(`[data-sum="${cat}"]`).textContent = fmt(catSum);
+    grand += catSum;
+  });
+
+  document.getElementById("grandTotal").textContent = fmt(grand);
+}
+
+document.querySelectorAll(".add-row").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const cat = btn.dataset.cat;
+    shopping[cat].push({ name: "Новая позиция", qty: 1, unit: "шт", price: 0 });
+    saveShopping(); renderShopping();
+  });
+});
+
+document.getElementById("resetShopBtn").addEventListener("click", () => {
+  if (confirm("Вернуть исходный список закупок? Все изменения будут потеряны.")) {
+    shopping = structuredClone(DEFAULT_SHOPPING);
+    saveShopping(); renderShopping();
+  }
+});
+
+renderShopping();
+
+/* ============================================================================
+   ТАБЫ  (Гости / Закупки) — активный таб сохраняется в localStorage
+   ============================================================================ */
+const TAB_KEY = "bday-active-tab";
+
+function activateTab(name) {
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === name));
+  document.getElementById("panel-guests").classList.toggle("active", name === "guests");
+  document.getElementById("panel-shop").classList.toggle("active", name === "shop");
+  try { localStorage.setItem(TAB_KEY, name); } catch(e) {}
+}
+
+document.querySelectorAll(".tab").forEach(t =>
+  t.addEventListener("click", () => activateTab(t.dataset.tab)));
+
+// восстановить последний открытый таб (по умолчанию — «Гости»)
+let startTab = "guests";
+try { const s = localStorage.getItem(TAB_KEY); if (s === "shop" || s === "guests") startTab = s; } catch(e) {}
+activateTab(startTab);
+
+/* ============================================================================
+   МЕНЮ «ТРОЕТОЧИЕ» — прячет разрушающие действия от случайного клика
+   ============================================================================ */
+function setupMenu(btnId, menuId) {
+  const btn = document.getElementById(btnId);
+  const menu = document.getElementById(menuId);
+  if (!btn || !menu) return;
+  const open = () => { menu.hidden = false; btn.setAttribute("aria-expanded", "true"); };
+  const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.hidden ? open() : close();
+  });
+  // клик по пункту меню закрывает его (сам обработчик сброса уже навешан отдельно)
+  menu.addEventListener("click", () => close());
+  return close;
+}
+
+const closeGuestsMenu = setupMenu("guestsMenuBtn", "guestsMenu");
+const closeShopMenu = setupMenu("shopMenuBtn", "shopMenu");
+
+// клик вне меню или Esc — закрыть все
+document.addEventListener("click", () => { closeGuestsMenu && closeGuestsMenu(); closeShopMenu && closeShopMenu(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeGuestsMenu && closeGuestsMenu(); closeShopMenu && closeShopMenu(); }
+});
+
+/* ============================================================================
+   ИНИЦИАЛИЗАЦИЯ ОБЛАКА
+   Страница уже отрисована из локального кэша (мгновенно). Теперь подтягиваем
+   свежие данные из облака и, если они есть, обновляем состояние и экран.
+   ============================================================================ */
+syncEl = document.getElementById("syncStatus");
+
+async function initCloud() {
+  if (!CLOUD_ENABLED) { setSync("off", "Облако не настроено"); return; }
+  setSync("saving", "Загружаю…");
+  const data = await cloudLoad();
+  if (data) {
+    if (Array.isArray(data.guests)) { guests = assignIds(data.guests); selectedId = null; render(); }
+    if (data.shopping && typeof data.shopping === "object") {
+      shopping = data.shopping;
+      CATS.forEach(c => { if (!Array.isArray(shopping[c])) shopping[c] = []; });
+      renderShopping();
+    }
+    // сохраним подтянутое в локальный кэш
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(guests));
+      localStorage.setItem(SHOP_KEY, JSON.stringify(shopping));
+    } catch(e) {}
+    setSync("ok", "Синхронизировано");
+  } else {
+    // в облаке пусто — отправим туда текущее локальное состояние как первое
+    setSync("saving", "Первая синхронизация…");
+    cloudPending = true;
+    await pushToCloud();
+  }
+}
+
+// кнопка ручного обновления из облака
+const refreshBtn = document.getElementById("cloudRefresh");
+if (refreshBtn) refreshBtn.addEventListener("click", initCloud);
+
+// подтянуть свежее, когда вкладка снова становится активной (вернулся с телефона)
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !cloudPending) initCloud();
+});
+
+initCloud();
+</script>
+</body>
+</html>
