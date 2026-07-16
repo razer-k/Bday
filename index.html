@@ -93,6 +93,33 @@
   .tab.active { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
 
   .tab-panel { display: none; }
+
+  /* ---------- Вкладки 2-го уровня ---------- */
+  .subtabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .subtab {
+    border: 1px solid var(--line); background: var(--paper); cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+    padding: 8px 14px; border-radius: 999px; display: inline-flex; align-items: center; gap: 7px;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  .subtab:hover { color: var(--ink); }
+  .subtab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .subtab .cnt {
+    font-size: 11px; font-weight: 800; background: var(--bg); color: var(--muted);
+    padding: 2px 7px; border-radius: 999px; min-width: 20px; text-align: center;
+  }
+  .subtab.active .cnt { background: rgba(255,255,255,.22); color: #fff; }
+
+  .type-btn { cursor: pointer; font-family: inherit; transition: filter .12s; }
+  .type-btn:hover { filter: brightness(.96); }
+  .badge.child { background: #e7f0fb; color: #2f6099; }
+
+  .empty-row {
+    text-align: center; color: var(--muted); font-size: 14px; padding: 28px 16px !important;
+  }
+
+  /* Компактная мобильная шапка строки — на десктопе скрыта */
+  .brief-cell { display: none; }
   .tab-panel.active { display: block; animation: fade .2s ease; }
   @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .tab-panel.active { animation: none; } }
@@ -331,20 +358,66 @@
     body { padding: 16px 10px 48px; }
     thead { display: none; }
     table, tbody, tr, td { display: block; width: 100%; }
+
+    /* --- Компактный список: одна строка = один гость --- */
     tbody tr {
-      background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
-      margin-bottom: 12px; padding: 6px 4px; box-shadow: var(--shadow-sm);
+      background: var(--paper); border: 1px solid var(--line); border-radius: 12px;
+      margin-bottom: 8px; padding: 0; box-shadow: var(--shadow-sm); overflow: hidden;
     }
     tbody tr.selected { box-shadow: inset 0 0 0 2px var(--accent); }
-    tbody td {
-      display: flex; justify-content: space-between; align-items: center; gap: 12px;
-      border-bottom: 1px solid var(--line); padding: 11px 14px;
+
+    /* видна всегда — свёрнутая шапка */
+    .brief-cell { display: block; border-bottom: none; padding: 0; }
+    .brief {
+      display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer;
     }
-    tbody td:last-child { border-bottom: none; }
-    tbody td::before {
+    .brief-dot {
+      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-yes   { background: #34a05a; }
+    .dot-maybe { background: #e0a72c; }
+    .dot-no    { background: #c2b5ba; }
+    .brief-main { flex: 1; min-width: 0; }
+    .brief-name {
+      font-weight: 700; font-size: 15px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .brief-note {
+      font-size: 12px; color: var(--muted); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+    }
+    .brief-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .brief-kid {
+      font-size: 10px; font-weight: 800; background: #e7f0fb; color: #2f6099;
+      padding: 3px 6px; border-radius: 999px;
+    }
+    .brief-drink {
+      font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 999px;
+      white-space: nowrap;
+    }
+    .brief-drink.whisky { background: var(--whisky-bg); color: var(--whisky); }
+    .brief-drink.gin    { background: var(--gin-bg);    color: var(--gin); }
+    .brief-drink.wine   { background: var(--wine-bg);   color: var(--wine); }
+    .brief-drink.beer   { background: var(--beer-bg);   color: var(--beer); }
+    .brief-drink.none   { background: var(--none-bg);   color: var(--none); }
+    .brief-chev {
+      color: #c8c0b6; font-size: 18px; line-height: 1; transition: transform .18s;
+    }
+    tr.expanded .brief-chev { transform: rotate(90deg); }
+    tr.absent .brief-name { text-decoration: line-through; }
+
+    /* остальные ячейки скрыты, пока строка свёрнута */
+    tbody td:not(.brief-cell) { display: none; }
+    tbody tr.expanded td:not(.brief-cell) {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      border-top: 1px solid var(--line); padding: 11px 14px;
+    }
+    tbody tr.expanded td::before {
       content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--muted);
       text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0;
     }
+    tbody td.empty-row { display: block; text-align: center; }
+    tbody td.empty-row::before { content: none; }
     .num-cell { width: auto; }
     .drag-handle { display: none; }   /* на тач-экранах drag ненадёжен */
     .moves { display: flex; }
@@ -403,6 +476,13 @@
   <!-- ===== ПАНЕЛЬ: ГОСТИ ===== -->
   <div class="tab-panel" id="panel-guests" role="tabpanel">
 
+  <!-- ===== ВКЛАДКИ 2-ГО УРОВНЯ: фильтр по типу гостя ===== -->
+  <div class="subtabs" role="tablist">
+    <button class="subtab" data-filter="all" role="tab">Все <span class="cnt" data-cnt="all">0</span></button>
+    <button class="subtab" data-filter="adult" role="tab">Взрослые <span class="cnt" data-cnt="adult">0</span></button>
+    <button class="subtab" data-filter="child" role="tab">Дети <span class="cnt" data-cnt="child">0</span></button>
+  </div>
+
   <!-- ===== ДЕЙСТВИЯ ===== -->
   <div class="toolbar">
     <button class="btn primary" id="addBtn">+ Добавить гостя</button>
@@ -419,6 +499,7 @@
     <table>
       <thead>
         <tr>
+          <th class="brief-cell"></th>
           <th class="sortable" data-sort="index">№</th>
           <th class="sortable" data-sort="name">Имя</th>
           <th class="sortable" data-sort="type">Тип гостя</th>
@@ -671,6 +752,7 @@ const tbody = document.getElementById("tbody");
 
 /* ---------- Перестановка гостей (drag & drop + кнопки ↑/↓) ---------- */
 let dragId = null;
+let typeFilter = "all";   // вкладки 2-го уровня: all | adult | child
 
 // Ручной порядок виден только без сортировки по столбцу.
 // Поэтому при перестановке сбрасываем сортировку в режим «свой порядок».
@@ -734,10 +816,33 @@ function sortedGuests() {
 
 function render() {
   tbody.innerHTML = "";
-  const view = sortedGuests();
+  // Фильтр 2-го уровня применяем только к отображению.
+  // (sortedGuests() возвращает ВСЕХ — он же используется для перестановки,
+  //  и фильтрация там потеряла бы гостей из массива.)
+  const view = sortedGuests().filter(g =>
+    typeFilter === "all" ? true :
+    typeFilter === "child" ? g.type === "child" : g.type !== "child"
+  );
+
+  if (!view.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.className = "empty-row";
+    td.colSpan = 8;
+    td.textContent = typeFilter === "child"
+      ? "Детей в списке пока нет — нажмите «Взрослый» в строке гостя, чтобы поменять тип"
+      : "Здесь пока никого нет";
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    updateSortIndicators();
+    updateSubtabs();
+    updateSummary();
+    return;
+  }
+
   view.forEach((g, i) => {
     const tr = document.createElement("tr");
-    if (g.id === selectedId) tr.classList.add("selected");
+    if (g.id === selectedId) tr.classList.add("selected", "expanded");
     if (g.going === "no") tr.classList.add("absent");
     if (g.going === "maybe") tr.classList.add("maybe");
 
@@ -747,6 +852,46 @@ function render() {
       selectedId = (selectedId === g.id) ? null : g.id;
       render();
     });
+
+    // --- Компактная шапка (видна только на телефоне) ---
+    // Свёрнутая строка: точка статуса + имя + примечание + напиток.
+    // Тап по ней раскрывает остальные ячейки.
+    const tdBrief = document.createElement("td");
+    tdBrief.className = "brief-cell";
+    const brief = document.createElement("div");
+    brief.className = "brief";
+    const dot = document.createElement("span");
+    dot.className = "brief-dot dot-" + g.going;
+    const briefMain = document.createElement("div");
+    briefMain.className = "brief-main";
+    const briefName = document.createElement("div");
+    briefName.className = "brief-name";
+    briefName.textContent = g.name || "—";
+    briefMain.appendChild(briefName);
+    if (g.note) {
+      const briefNote = document.createElement("div");
+      briefNote.className = "brief-note";
+      briefNote.textContent = g.note;
+      briefMain.appendChild(briefNote);
+    }
+    const briefRight = document.createElement("div");
+    briefRight.className = "brief-right";
+    if (g.type === "child") {
+      const kid = document.createElement("span");
+      kid.className = "brief-kid"; kid.textContent = "реб.";
+      briefRight.appendChild(kid);
+    }
+    const briefDrink = document.createElement("span");
+    briefDrink.className = "brief-drink " + g.drink;
+    briefDrink.textContent = DRINKS[g.drink] || "—";
+    briefRight.appendChild(briefDrink);
+    const chev = document.createElement("span");
+    chev.className = "brief-chev"; chev.textContent = "›";
+    briefRight.appendChild(chev);
+
+    brief.append(dot, briefMain, briefRight);
+    tdBrief.appendChild(brief);
+    tr.appendChild(tdBrief);
 
     // № + ручка перетаскивания и кнопки ↑/↓
     const tdNum = cell("№", "num-cell");
@@ -836,9 +981,19 @@ function render() {
     tdName.appendChild(nameWrap);
     tr.appendChild(tdName);
 
-    // Тип гостя
+    // Тип гостя (переключатель Взрослый / Ребёнок)
     const tdType = cell("Тип гостя");
-    tdType.innerHTML = `<span class="badge adult">Взрослый</span>`;
+    const typeBtn = document.createElement("button");
+    typeBtn.className = "badge type-btn " + (g.type === "child" ? "child" : "adult");
+    typeBtn.textContent = g.type === "child" ? "Ребёнок" : "Взрослый";
+    typeBtn.title = "Нажмите, чтобы изменить тип";
+    typeBtn.addEventListener("click", () => {
+      g.type = (g.type === "child") ? "adult" : "child";
+      // ребёнку алкоголь не считаем
+      if (g.type === "child") { g.drinks = false; g.drink = "none"; }
+      save(); render();
+    });
+    tdType.appendChild(typeBtn);
     tr.appendChild(tdType);
 
     // Пьёт алкоголь (переключатель)
@@ -897,6 +1052,7 @@ function render() {
     tbody.appendChild(tr);
   });
   updateSortIndicators();
+  updateSubtabs();
   updateSummary();
 }
 
@@ -907,6 +1063,26 @@ function updateSortIndicators() {
     if (th.dataset.sort === sortKey) th.classList.add(sortDir === 1 ? "asc" : "desc");
   });
 }
+
+/* ---------- Вкладки 2-го уровня: Все / Взрослые / Дети ---------- */
+function updateSubtabs() {
+  const all = guests.length;
+  const children = guests.filter(g => g.type === "child").length;
+  const adults = all - children;
+  const counts = { all, adult: adults, child: children };
+  document.querySelectorAll("[data-cnt]").forEach(el => {
+    el.textContent = counts[el.dataset.cnt] ?? 0;
+  });
+  document.querySelectorAll(".subtab").forEach(t =>
+    t.classList.toggle("active", t.dataset.filter === typeFilter));
+}
+
+document.querySelectorAll(".subtab").forEach(t => {
+  t.addEventListener("click", () => {
+    typeFilter = t.dataset.filter;
+    render();
+  });
+});
 
 document.querySelectorAll("thead th.sortable").forEach(th => {
   th.addEventListener("click", () => {
