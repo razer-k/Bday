@@ -814,15 +814,21 @@ function sortedGuests() {
   return arr;
 }
 
+// Гости в порядке отображения с учётом активной вкладки 2-го уровня.
+// Используется и при отрисовке, и при добавлении (фокус на новой строке).
+function visibleGuests() {
+  return sortedGuests().filter(g =>
+    typeFilter === "all" ? true :
+    typeFilter === "child" ? g.type === "child" : g.type !== "child"
+  );
+}
+
 function render() {
   tbody.innerHTML = "";
   // Фильтр 2-го уровня применяем только к отображению.
   // (sortedGuests() возвращает ВСЕХ — он же используется для перестановки,
   //  и фильтрация там потеряла бы гостей из массива.)
-  const view = sortedGuests().filter(g =>
-    typeFilter === "all" ? true :
-    typeFilter === "child" ? g.type === "child" : g.type !== "child"
-  );
+  const view = visibleGuests();
 
   if (!view.length) {
     const tr = document.createElement("tr");
@@ -1160,12 +1166,17 @@ function boozeCard(cls, title, litres, bottleSize) {
 
 /* ---------- Действия ---------- */
 document.getElementById("addBtn").addEventListener("click", () => {
-  const g = { id: _nextId++, name:"Новый гость", type:"adult", drinks:true, drink:"whisky", note:"", going:"yes" };
+  // Тип нового гостя зависит от активной вкладки: на «Дети» добавляем ребёнка,
+  // на «Взрослые»/«Все» — взрослого. Так новый гость сразу виден в текущем фильтре.
+  const asChild = typeFilter === "child";
+  const g = asChild
+    ? { id: _nextId++, name:"Новый гость", type:"child", drinks:false, drink:"none",   note:"", going:"yes" }
+    : { id: _nextId++, name:"Новый гость", type:"adult", drinks:true,  drink:"whisky", note:"", going:"yes" };
   guests.push(g);
   selectedId = g.id;
   save(); render();
-  // фокус на строке нового гостя (учитывая текущую сортировку)
-  const view = sortedGuests();
+  // фокус на строке нового гостя (по видимому — отфильтрованному — списку)
+  const view = visibleGuests();
   const pos = view.findIndex(x => x.id === g.id);
   const inputs = tbody.querySelectorAll(".name-cell input");
   if (pos > -1 && inputs[pos]) { inputs[pos].focus(); inputs[pos].select(); }
